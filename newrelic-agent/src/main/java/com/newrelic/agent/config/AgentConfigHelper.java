@@ -88,7 +88,9 @@ public class AgentConfigHelper {
 
     private static Yaml createYaml() {
         SafeConstructor constructor = new ExtensionConstructor();
-        return new Yaml(constructor);
+        Yaml yaml = new Yaml(constructor);
+        yaml.addImplicitResolver(EnvScalarConstructor.ENV_TAG, EnvScalarConstructor.ENV_FORMAT, "$");
+        return yaml;
     }
 
     private static class ExtensionConstructor extends SafeConstructor {
@@ -109,6 +111,18 @@ public class AgentConfigHelper {
                 public Object construct(Node node) {
                     String value = constructScalar((ScalarNode) node);
                     return new ObscuredYamlPropertyWrapper(value);
+                }
+            });
+            yamlConstructors.put(EnvScalarConstructor.ENV_TAG, new AbstractConstruct() {
+                EnvScalarConstructor constructor = new EnvScalarConstructor();
+                public Object construct(Node node) {
+                    String val = constructScalar((ScalarNode) node);
+                    Matcher matcher = EnvScalarConstructor.ENV_FORMAT.matcher(val);
+                    matcher.matches();
+                    String name = matcher.group("name");
+                    String value = matcher.group("value");
+                    String separator = matcher.group("separator");
+                    return constructor.apply(name, separator, value != null ? value : "", constructor.getEnv(name));
                 }
             });
         }
